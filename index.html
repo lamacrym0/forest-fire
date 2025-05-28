@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Forest Fire Animation Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; text-align: center; }
+    canvas { border: 1px solid #333; margin-top: 10px; }
+    input[type="file"] { margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <h2>🌲 Forest Fire Simulation Animation 🔥</h2>
+  <input type="file" id="jsonInput" accept=".json">
+  <br>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const cellSize = 20;
+    const colorMap = {
+      "Tree": "green",
+      "Empty": "#000000",
+      "Burning": "red",
+      "Water": "blue"
+    };
+
+    let frames = [];
+    let currentFrame = 0;
+    let intervalId = null;
+
+    document.getElementById("jsonInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const data = JSON.parse(event.target.result);
+        const width = data.width;
+        const height = data.height;
+        frames = data.simulations;
+
+        canvas.width = width * cellSize;
+        canvas.height = height * cellSize;
+        currentFrame = 0;
+
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(() => {
+          drawFrame(frames[currentFrame]);
+          currentFrame = (currentFrame + 1) % frames.length;
+        }, 300);
+      };
+      reader.readAsText(file);
+    });
+
+    function drawFrame(grid) {
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          const cell = grid[y][x];
+          ctx.fillStyle = colorMap[cell] || "#666";
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
