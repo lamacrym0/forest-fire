@@ -20,10 +20,11 @@
     const ctx = canvas.getContext("2d");
     const cellSize = 20;
     const colorMap = {
-      "Tree": "green",
-      "Empty": "#000000",
-      "Burning": "red",
-      "Water": "blue"
+      "T": "green",
+      "E": "#000000",
+      "F": "red",
+      "W": "blue"
+      "O": "grey"
     };
 
     let frames = [];
@@ -39,7 +40,8 @@
         const data = JSON.parse(event.target.result);
         const width = data.width;
         const height = data.height;
-        frames = data.simulations;
+        frames = data.simulation;
+        console.log(frames)
 
         canvas.width = width * cellSize;
         canvas.height = height * cellSize;
@@ -47,7 +49,8 @@
 
         if (intervalId) clearInterval(intervalId);
         intervalId = setInterval(() => {
-          drawFrame(frames[currentFrame]);
+          console.log(`Drawing frame ${frames.simulation_step}`);
+          drawFrame(frames[currentFrame].simulation_step);
           currentFrame = (currentFrame + 1) % frames.length;
         }, 300);
       };

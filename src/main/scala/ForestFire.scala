@@ -15,6 +15,9 @@ case object Tree extends Cell{
 case object Burning extends Cell{
   override def toString: String = "Burning"
 }
+case object Burn extends Cell{
+  override def toString: String = "Burn"
+}
 
 case object Water extends Cell{
   override def toString: String = "Water"
@@ -45,6 +48,7 @@ class ForestFire(width:Int = 15, height:Int = 15, treeDensity:Double = 0.8, wate
         case Tree    => "🌲"
         case Burning => "🔥"
         case Water   => "💧"
+        case Burn    => "🪵"
       }.mkString)
     }
     println("\n")
@@ -56,22 +60,44 @@ class ForestFire(width:Int = 15, height:Int = 15, treeDensity:Double = 0.8, wate
     for (y <- 0 until height; x <- 0 until width) {
       grid(y)(x) match {
         case Tree =>
-          if (hasBurningNeighbor(x, y) && rnd.nextDouble() < firePropagationChance) newGrid(y)(x) = Burning else if (rnd.nextDouble() < fireStartChance) newGrid(y)(x) = Burning
+          val rdm = rnd.nextDouble()
+          if ( hasWaterNeighbor(x,y)){
+            if (hasBurningNeighbor(x, y) && rdm < firePropagationChance/1.5) newGrid(y)(x) = Burning
+            else if (rdm < fireStartChance/1.5) newGrid(y)(x) = Burning
+          } else {
+            if (hasBurningNeighbor(x, y) && rdm < firePropagationChance) newGrid(y)(x) = Burning
+            else if (rdm < fireStartChance) newGrid(y)(x) = Burning
+          }
         case Burning =>
-          newGrid(y)(x) = Empty
+          newGrid(y)(x) = Burn
         case Empty =>
-          if (rnd.nextDouble() < treePropagationChance) newGrid(y)(x) = Tree
+          val rdm = rnd.nextDouble()
+          if(hasWaterNeighbor(x,y) && hasTreeNeighbor(x,y) && rdm < treePropagationChance*2) newGrid(y)(x) = Tree
+          else if ( hasTreeNeighbor(x,y) && rdm < treePropagationChance) newGrid(y)(x) = Tree
+          else if (rdm < treePropagationChance/1.5) newGrid(y)(x) = Tree
+        case Burn =>
+          val rdm = rnd.nextDouble()
+          if (hasWaterNeighbor(x, y) && hasTreeNeighbor(x,y) && rdm < treePropagationChance * 2) newGrid(y)(x) = Tree
+          else if (rdm < treePropagationChance) newGrid(y)(x) = Tree
         case _ =>
       }
     }
     grid = newGrid
   }
   def hasWaterNeighbor(x:Int,y:Int) : Boolean = {
-
     directions.exists { case (dx, dy) =>
       val nx = x + dx
       val ny = y + dy
       nx >= 0 && nx < width && ny >= 0 && ny < height && grid(ny)(nx) == Water
+    }
+  }
+
+  def hasTreeNeighbor(x: Int, y: Int): Boolean = {
+
+    directions.exists { case (dx, dy) =>
+      val nx = x + dx
+      val ny = y + dy
+      nx >= 0 && nx < width && ny >= 0 && ny < height && grid(ny)(nx) == Tree
     }
   }
   def hasBurningNeighbor(x: Int, y: Int): Boolean = {
@@ -84,52 +110,84 @@ class ForestFire(width:Int = 15, height:Int = 15, treeDensity:Double = 0.8, wate
 
   def burningRatio: Double = {
     val total = grid.flatten.length.toDouble
-    val burning = grid.flatten.count(_ == Burning)
+    val burning = grid.flatten.count((x)=>x == Burn || x== Burning)
     burning / total
   }
 
   override def toString: String = {
     grid.map { row =>
       row.map {
-        case Empty => "\"Empty\""
-        case Tree => "\"Tree\""
-        case Burning => "\"Burning\""
+        case Empty => "\"E\""
+        case Tree => "\"T\""
+        case Burning => "\"F\""
         case Water => "\"Water\""
+        case Burn => "\"B\""
       }.mkString("[", ",", "]")
-    }.mkString("[\n  ", ",\n  ", "\n]")
+    }.mkString("{\"burningRatio\":" + burningRatio +",\"step\":[\n  ", ",\n  ", "\n]}")
   }
 
 }
 
+
 object Main extends App {
-  val width = 15
-  val height = 15
+    def simuleOne(width:Int = 40, height:Int = 40, treeDensity:Double = 0.8, waterDensity:Double = 0.2, fireStartChance:Double = 0.05, treePropagationChance:Double = 0.1, firePropagationChance:Double = 0.5,nbr_step:Int = 100,animation:Boolean = false):String   = {
+      var steps = List[String]()
+      var ratioBurningSimulation = 0.0
+      val simulation = new ForestFire(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance, firePropagationChance)
+      if(animation){
+        for (x <- 0 until nbr_step) {
+          steps = simulation.toString :: steps
+          ratioBurningSimulation += simulation.burningRatio
+          simulation.step()
+        }
+      }else{
+        for (x <- 0 until nbr_step) {
+          steps = simulation.burningRatio.toString :: steps
+          ratioBurningSimulation += simulation.burningRatio
+          simulation.step()
+        }
+      }
+
+      ratioBurningSimulation /= nbr_step
+
+      "{" +
+        "\"treePropagationChance\": " + treePropagationChance + "," +
+        "\"firePropagationChance\": " + firePropagationChance + "," +
+        "\"ratioBurningSimulation\": " + ratioBurningSimulation + "," +
+        (if (animation) "\"simulation\": "  else "\"burningRatios\":") + steps.reverse.mkString("[\n", ",", "\n]")  +
+        "}"
+    }
+
+
+  val width = 40
+  val height = 40
   val treeDensity = 0.8
   val waterDensity = 0.2
   val fireStartChance = 0.05
-  val treePropagationChance = 0.1
-  val firePropagationChance = 0.5
+  val nbr_step = 100
+
+
   var simulations = List[String]()
-
-  val simulation = new ForestFire(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance, firePropagationChance)
-
-  for (_ <- 0 until 50) {
-    simulations = simulation.toString :: simulations
-    simulation.step()
+  var idx = 1
+  for (treePropagationChance <- 0 until 100 by 10) {
+    for (firePropagationChance <- 0 until 100 by 10){
+      println(idx)
+      idx += 1
+      simulations = simuleOne(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance.toDouble/100, firePropagationChance.toDouble/100,nbr_step,false) :: simulations
+    }
   }
-
   val jsonString = "{" +
     "\"width\":" + width + "," +
     "\"height\":" + height + "," +
     "\"treeDensity\": " + treeDensity + "," +
     "\"waterDensity\": " + waterDensity + "," +
     "\"fireStartChance\":" + fireStartChance + "," +
-    "\"treePropagationChance\": " + treePropagationChance + "," +
-    "\"firePropagationChance\": " + firePropagationChance + "," +
-    "\"simulations\": " +
-    simulations.reverse.mkString("[\n", ",\n", "\n]") + "}"
+    "\"simulations\":" +
+    simulations.reverse.mkString ("[\n", ",\n", "\n]}")
+
 
   val writer = new PrintWriter(new File("simulation.json"))
   writer.write(jsonString)
   writer.close()
+
 }
