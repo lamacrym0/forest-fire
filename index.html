@@ -6,66 +6,125 @@
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     canvas { border: 1px solid #333; margin-top: 10px; }
-    input[type="file"] { margin-bottom: 15px; }
+    input[type="file"], input[type="range"] { margin-bottom: 15px; }
+    label { display: block; margin: 10px 0 5px; }
   </style>
 </head>
 <body>
-  <h2>🌲 Forest Fire Simulation Animation 🔥</h2>
-  <input type="file" id="jsonInput" accept=".json">
-  <br>
-  <canvas id="canvas"></canvas>
+<h2>Forest Fire Simulation Animation</h2>
+<input type="file" id="jsonInput" accept=".json">
+<label for="treeSlider">Tree Propagation Chance</label>
+<input type="range" id="treeSlider" step="1" min="0" value="0">
+<span id="treeValue">0</span>
 
-  <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    const cellSize = 20;
-    const colorMap = {
-      "T": "green",
-      "E": "#000000",
-      "F": "red",
-      "W": "blue"
-      "O": "grey"
+<label for="fireSlider">Fire Propagation Chance</label>
+<input type="range" id="fireSlider" step="1" min="0" value="0">
+<span id="fireValue">0</span>
+
+<p id="simInfo"></p>
+<canvas id="canvas"></canvas>
+
+<script>
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const cellSize = 20;
+  const treeSlider = document.getElementById("treeSlider");
+  const fireSlider = document.getElementById("fireSlider");
+  const treeValue = document.getElementById("treeValue");
+  const fireValue = document.getElementById("fireValue");
+  const simInfo = document.getElementById("simInfo");
+
+  const colorMap = {
+    "T": "green",
+    "E": "#000000",
+    "F": "red",
+    "W": "blue",
+    "B": "grey"
+  };
+
+  let simulations = [];
+  let frames = [];
+  let width = 0;
+  let height = 0;
+  let currentFrame = 0;
+  let intervalId = null;
+
+  document.getElementById("jsonInput").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const data = JSON.parse(event.target.result);
+      width = data.width;
+      height = data.height;
+      simulations = data.simulations.filter(sim => sim.simulation);
+
+      const maxFire = Math.max(...simulations.map(sim => sim.firePropagationChance));
+      const maxTree = Math.max(...simulations.map(sim => sim.treePropagationChance));
+      const minFire = Math.min(...simulations.map(sim => sim.firePropagationChance));
+      const minTree = Math.min(...simulations.map(sim => sim.treePropagationChance));
+
+      fireSlider.max = maxFire * 100;
+      fireSlider.min = minFire * 100;
+      fireSlider.step = 1;
+
+      treeSlider.max = maxTree * 100;
+      treeSlider.min = minTree * 100;
+      treeSlider.step = 1;
+
+      fireSlider.value = fireSlider.min;
+      treeSlider.value = treeSlider.min;
+
+      loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
     };
+    reader.readAsText(file);
+  });
 
-    let frames = [];
-    let currentFrame = 0;
-    let intervalId = null;
+  fireSlider.addEventListener("input", function () {
+    fireValue.textContent = (fireSlider.value / 100).toFixed(2);
+    loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
+  });
 
-    document.getElementById("jsonInput").addEventListener("change", function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+  treeSlider.addEventListener("input", function () {
+    treeValue.textContent = (treeSlider.value / 100).toFixed(2);
+    loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
+  });
 
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const data = JSON.parse(event.target.result);
-        const width = data.width;
-        const height = data.height;
-        frames = data.simulation;
-        console.log(frames)
+  function loadSimulation(index) {
+    if (index === -1 || !simulations[index]) return;
 
-        canvas.width = width * cellSize;
-        canvas.height = height * cellSize;
-        currentFrame = 0;
+    if (intervalId) clearInterval(intervalId);
 
-        if (intervalId) clearInterval(intervalId);
-        intervalId = setInterval(() => {
-          console.log(`Drawing frame ${frames.simulation_step}`);
-          drawFrame(frames[currentFrame].simulation_step);
-          currentFrame = (currentFrame + 1) % frames.length;
-        }, 300);
-      };
-      reader.readAsText(file);
-    });
+    const sim = simulations[index];
+    frames = sim.simulation;
+    currentFrame = 0;
+    canvas.width = width * cellSize;
+    canvas.height = height * cellSize;
+    simInfo.textContent = `Simulation ${index + 1} | TreeProp: ${sim.treePropagationChance} | FireProp: ${sim.firePropagationChance}`;
 
-    function drawFrame(grid) {
-      for (let y = 0; y < grid.length; y++) {
-        for (let x = 0; x < grid[y].length; x++) {
-          const cell = grid[y][x];
-          ctx.fillStyle = colorMap[cell] || "#666";
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        }
+    intervalId = setInterval(() => {
+      drawFrame(frames[currentFrame].step);
+      currentFrame = (currentFrame + 1) % frames.length;
+    }, 300);
+  }
+
+  function findId(treePropagationChance, firePropagationChance) {
+    return simulations.findIndex(sim =>
+      sim.treePropagationChance === treePropagationChance &&
+      sim.firePropagationChance === firePropagationChance
+    );
+  }
+
+  function drawFrame(grid) {
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[y].length; x++) {
+        const cell = grid[y][x];
+        ctx.fillStyle = colorMap[cell] || "#666";
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
     }
-  </script>
+  }
+</script>
 </body>
 </html>
