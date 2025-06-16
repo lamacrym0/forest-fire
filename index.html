@@ -6,33 +6,42 @@
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     canvas { border: 1px solid #333; margin-top: 10px; }
-    input[type="file"], input[type="range"] { margin-bottom: 15px; }
+    select, button { margin: 5px; }
     label { display: block; margin: 10px 0 5px; }
   </style>
 </head>
 <body>
 <h2>Forest Fire Simulation Animation</h2>
 <input type="file" id="jsonInput" accept=".json">
-<label for="treeSlider">Tree Propagation Chance</label>
-<input type="range" id="treeSlider" step="1" min="0" value="0">
-<span id="treeValue">0</span>
-
-<label for="fireSlider">Fire Propagation Chance</label>
-<input type="range" id="fireSlider" step="1" min="0" value="0">
-<span id="fireValue">0</span>
-
+<label for="treeSelect">Tree Propagation Chance</label>
+<select id="treeSelect"></select>
+<label for="fireSelect">Fire Propagation Chance</label>
+<select id="fireSelect"></select>
 <p id="simInfo"></p>
 <canvas id="canvas"></canvas>
+<br>
+<button id="pauseBtn">Pause</button>
+<button id="playBtn">Play</button>
+<button id="prevBtn">Previous Step</button>
+<button id="nextBtn">Next Step</button>
+<br>
+<canvas id="graphCanvas" width="600" height="200"></canvas>
+
 
 <script>
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
-  const cellSize = 20;
-  const treeSlider = document.getElementById("treeSlider");
-  const fireSlider = document.getElementById("fireSlider");
-  const treeValue = document.getElementById("treeValue");
-  const fireValue = document.getElementById("fireValue");
+  const graphCanvas = document.getElementById("graphCanvas");
+  const graphCtx = graphCanvas.getContext("2d");
+
+  const treeSelect = document.getElementById("treeSelect");
+  const fireSelect = document.getElementById("fireSelect");
   const simInfo = document.getElementById("simInfo");
+
+  const pauseBtn = document.getElementById("pauseBtn");
+  const playBtn = document.getElementById("playBtn");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
 
   const colorMap = {
     "T": "green",
@@ -60,53 +69,93 @@
       height = data.height;
       simulations = data.simulations.filter(sim => sim.simulation);
 
-      const maxFire = Math.max(...simulations.map(sim => sim.firePropagationChance));
-      const maxTree = Math.max(...simulations.map(sim => sim.treePropagationChance));
-      const minFire = Math.min(...simulations.map(sim => sim.firePropagationChance));
-      const minTree = Math.min(...simulations.map(sim => sim.treePropagationChance));
+      const uniqueTree = [...new Set(simulations.map(sim => sim.treePropagationChance))].sort((a, b) => a - b);
+      const uniqueFire = [...new Set(simulations.map(sim => sim.firePropagationChance))].sort((a, b) => a - b);
 
-      fireSlider.max = maxFire * 100;
-      fireSlider.min = minFire * 100;
-      fireSlider.step = 1;
+      treeSelect.innerHTML = uniqueTree.map(v => `<option value="${v}">${v}</option>`).join("");
+      fireSelect.innerHTML = uniqueFire.map(v => `<option value="${v}">${v}</option>`).join("");
 
-      treeSlider.max = maxTree * 100;
-      treeSlider.min = minTree * 100;
-      treeSlider.step = 1;
-
-      fireSlider.value = fireSlider.min;
-      treeSlider.value = treeSlider.min;
-
-      loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
+      loadSimulation(findId(parseFloat(treeSelect.value), parseFloat(fireSelect.value)));
     };
     reader.readAsText(file);
   });
 
-  fireSlider.addEventListener("input", function () {
-    fireValue.textContent = (fireSlider.value / 100).toFixed(2);
-    loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
+  treeSelect.addEventListener("change", function() {
+    loadSimulation(findId(parseFloat(treeSelect.value), parseFloat(fireSelect.value)));
   });
 
-  treeSlider.addEventListener("input", function () {
-    treeValue.textContent = (treeSlider.value / 100).toFixed(2);
-    loadSimulation(findId(treeSlider.value / 100, fireSlider.value / 100));
+  fireSelect.addEventListener("change", function() {
+    loadSimulation(findId(parseFloat(treeSelect.value), parseFloat(fireSelect.value)));
+  });
+
+  pauseBtn.addEventListener("click", function() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+  });
+
+  playBtn.addEventListener("click", function() {
+    if (!intervalId) {
+      intervalId = setInterval(nextStep, 300);
+    }
+  });
+
+  prevBtn.addEventListener("click", function() {
+    if (currentFrame > 0) currentFrame--;
+    drawFrame(frames[currentFrame].step);
+  });
+
+  nextBtn.addEventListener("click", function() {
+    nextStep();
   });
 
   function loadSimulation(index) {
     if (index === -1 || !simulations[index]) return;
-
-    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
 
     const sim = simulations[index];
     frames = sim.simulation;
     currentFrame = 0;
-    canvas.width = width * cellSize;
-    canvas.height = height * cellSize;
+    canvas.width = width * 15;
+    canvas.height = height * 15;
     simInfo.textContent = `Simulation ${index + 1} | TreeProp: ${sim.treePropagationChance} | FireProp: ${sim.firePropagationChance}`;
 
-    intervalId = setInterval(() => {
-      drawFrame(frames[currentFrame].step);
-      currentFrame = (currentFrame + 1) % frames.length;
-    }, 300);
+    drawBurningRatioGraph(frames);
+    drawFrame(frames[currentFrame].step);
+  }
+
+  function nextStep() {
+    drawFrame(frames[currentFrame].step);
+    currentFrame = (currentFrame + 1) % frames.length;
+  }
+
+  function drawBurningRatioGraph(frames) {
+    graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+    graphCtx.strokeStyle = "#000";
+    graphCtx.beginPath();
+    graphCtx.moveTo(40, 0);
+    graphCtx.lineTo(40, graphCanvas.height - 20);
+    graphCtx.lineTo(graphCanvas.width, graphCanvas.height - 20);
+    graphCtx.stroke();
+
+    graphCtx.fillStyle = "#000";
+    graphCtx.fillText("1.0", 5, 10);
+    graphCtx.fillText("0.5", 5, graphCanvas.height / 2);
+    graphCtx.fillText("0.0", 5, graphCanvas.height - 25);
+    graphCtx.fillText("Step 0", 40, graphCanvas.height - 5);
+    graphCtx.fillText(`Step ${frames.length}`, graphCanvas.width - 50, graphCanvas.height - 5);
+
+    graphCtx.beginPath();
+    frames.forEach((frame, i) => {
+      const x = 40 + i * ((graphCanvas.width - 40) / frames.length);
+      const y = (graphCanvas.height - 20) - frame.burningRatio * (graphCanvas.height - 20);
+      if (i === 0) {
+        graphCtx.moveTo(x, y);
+      } else {
+        graphCtx.lineTo(x, y);
+      }
+    });
+    graphCtx.strokeStyle = "red";
+    graphCtx.stroke();
   }
 
   function findId(treePropagationChance, firePropagationChance) {
@@ -121,7 +170,7 @@
       for (let x = 0; x < grid[y].length; x++) {
         const cell = grid[y][x];
         ctx.fillStyle = colorMap[cell] || "#666";
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        ctx.fillRect(x * 15, y * 15, 15, 15);
       }
     }
   }
