@@ -119,25 +119,25 @@ class ForestFire(width:Int = 15, height:Int = 15, treeDensity:Double = 0.8, wate
 
 
 object Main extends App {
-    def simuleOne(width:Int = 40, height:Int = 40, treeDensity:Double = 0.8, waterDensity:Double = 0.2, fireStartChance:Double = 0.05, treePropagationChance:Double = 0.1, firePropagationChance:Double = 0.5,nbr_step:Int = 100,animation:Boolean = false):String   = {
+    def simuleOne(width:Int = 40, height:Int = 40, treeDensity:Double = 0.8, waterDensity:Double = 0.2, fireStartChance:Double = 0.05, treePropagationChance:Double = 0.1, firePropagationChance:Double = 0.5, nbrStep:Int = 100, animation:Boolean = false):String   = {
       var steps = List[String]()
       var ratioBurningSimulation = 0.0
       val simulation = new ForestFire(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance, firePropagationChance)
       if(animation){
-        for (x <- 0 until nbr_step) {
+        for (x <- 0 until nbrStep) {
           steps = simulation.toString :: steps
           ratioBurningSimulation += simulation.burningRatio
           simulation.step()
         }
       }else{
-        for (x <- 0 until nbr_step) {
+        for (x <- 0 until nbrStep) {
           steps = simulation.burningRatio.toString :: steps
           ratioBurningSimulation += simulation.burningRatio
           simulation.step()
         }
       }
 
-      ratioBurningSimulation /= nbr_step
+      ratioBurningSimulation /= nbrStep
 
       "{" +
         "\"treePropagationChance\": " + treePropagationChance + "," +
@@ -147,34 +147,60 @@ object Main extends App {
         "}"
     }
 
+  def simuleWithVisual (width:Int = 40, height:Int = 40, treeDensity:Double = 0.8, waterDensity:Double = 0.2, fireStartChance:Double = 0.05, nbrStep:Int = 100) ={
+    var simulations = List[String]()
+    var idx = 1
+    for (treePropagationChance <- 0 until 100 by 10;firePropagationChance <- 0 until 100 by 10) {
+      println(idx)
+      idx += 1
+      simulations = simuleOne(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance.toDouble/500, firePropagationChance.toDouble/100,nbrStep,true) :: simulations
+    }
+    val jsonString = "{" +
+      "\"width\":" + width + "," +
+      "\"height\":" + height + "," +
+      "\"treeDensity\": " + treeDensity + "," +
+      "\"waterDensity\": " + waterDensity + "," +
+      "\"fireStartChance\":" + fireStartChance + "," +
+      "\"simulations\":" +
+      simulations.reverse.mkString("[\n", ",\n", "\n]}")
+
+
+    val writer = new PrintWriter(new File("visu_simulation.json"))
+    writer.write(jsonString)
+    writer.close()
+  }
+  def simuleWithoutVisual (width:Int = 40, height:Int = 40, treeDensity:Double = 0.8, waterDensity:Double = 0.2, fireStartChance:Double = 0.05, nbrStep:Int = 100) ={
+    var simulations = List[String]()
+    var idx = 1
+    for (treePropagationChance <- 0 until 100 by 1;firePropagationChance <- 0 until 100 by 1) {
+      println(idx)
+      idx += 1
+      simulations = simuleOne(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance.toDouble/500, firePropagationChance.toDouble/100,nbrStep,false) :: simulations
+    }
+    val jsonString = "{" +
+      "\"width\":" + width + "," +
+      "\"height\":" + height + "," +
+      "\"treeDensity\": " + treeDensity + "," +
+      "\"waterDensity\": " + waterDensity + "," +
+      "\"fireStartChance\":" + fireStartChance + "," +
+      "\"simulations\":" +
+      simulations.reverse.mkString("[\n", ",\n", "\n]}")
+
+
+    val writer = new PrintWriter(new File("simulation.json"))
+    writer.write(jsonString)
+    writer.close()
+  }
 
   val width = 40
   val height = 40
   val treeDensity = 0.8
   val waterDensity = 0.1
   val fireStartChance = 0.05
-  val nbr_step = 400
+  val nbrStep = 400
 
+  simuleWithVisual(width, height, treeDensity, waterDensity, fireStartChance,nbrStep)
+  simuleWithoutVisual(width, height, treeDensity, waterDensity, fireStartChance,nbrStep)
 
-  var simulations = List[String]()
-  var idx = 1
-  for (treePropagationChance <- 0 until 100 by 10;firePropagationChance <- 0 until 100 by 10) {
-      println(idx)
-      idx += 1
-      simulations = simuleOne(width, height, treeDensity, waterDensity, fireStartChance, treePropagationChance.toDouble/500, firePropagationChance.toDouble/100,nbr_step,true) :: simulations
-  }
-  val jsonString = "{" +
-    "\"width\":" + width + "," +
-    "\"height\":" + height + "," +
-    "\"treeDensity\": " + treeDensity + "," +
-    "\"waterDensity\": " + waterDensity + "," +
-    "\"fireStartChance\":" + fireStartChance + "," +
-    "\"simulations\":" +
-    simulations.reverse.mkString("[\n", ",\n", "\n]}")
-
-
-  val writer = new PrintWriter(new File("simulation.json"))
-  writer.write(jsonString)
-  writer.close()
 
 }
