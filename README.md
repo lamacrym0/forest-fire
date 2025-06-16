@@ -36,4 +36,7 @@ Fonctionnalités :
 * Contrôles : Pause / Play / Step +/-.
 * Graphe du ratio brûlé au fil du temps.
 
+## Exemple de simulation
+![simulation.gif](simulation.gif)
 ## Vidéo de présentation
+[Vidéo de présentation.mp4](Vid%C3%A9o%20de%20pr%C3%A9sentation.mp4)

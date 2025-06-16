@@ -25,6 +25,7 @@
 <button id="prevBtn">Previous Step</button>
 <button id="nextBtn">Next Step</button>
 <br>
+<h3>Ratio Burned Over Time</h3>
 <canvas id="graphCanvas" width="600" height="200"></canvas>
 
 
@@ -110,6 +111,7 @@
 
   function loadSimulation(index) {
     if (index === -1 || !simulations[index]) return;
+    if (intervalId) clearInterval(intervalId);
     intervalId = null;
 
     const sim = simulations[index];
