@@ -36,6 +36,14 @@ Fonctionnalités :
 * Contrôles : Pause / Play / Step +/-.
 * Graphe du ratio brûlé au fil du temps.
 
+
+Simulation:
+* Vert : Arbre
+* Bleu : Eau
+* Rouge : Entrain de brûlé
+* Gris : Brûlé
+* Noir : Vide
+
 ## Exemple de simulation
 ![simulation.gif](simulation.gif)
 ## Vidéo de présentation
