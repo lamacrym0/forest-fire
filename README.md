@@ -40,7 +40,7 @@ Fonctionnalités :
 Simulation:
 * Vert : Arbre
 * Bleu : Eau
-* Rouge : Entrain de brûler
+* Rouge : En train de brûler
 * Gris : Brûlé
 * Noir : Vide
 
